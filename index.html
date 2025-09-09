@@ -1,0 +1,145 @@
+<!DOCTYPE html><html lang="sw">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kavishe Media Player</title>
+  <script src="https://unpkg.com/wavesurfer.js"></script>
+  <style>
+    body {font-family: Arial, sans-serif; background:#0f172a; color:white; text-align:center; margin:0; padding:0;}
+    header {background:#1e293b; padding:1rem; font-size:1.5rem; font-weight:bold;}
+    main {padding:1rem;}
+    button {background:#22c55e; border:none; color:white; padding:10px 20px; margin:5px; border-radius:8px; cursor:pointer; font-weight:bold;}
+    button:hover {background:#16a34a;}
+    #controls {margin-top:1rem;}
+    #waveform {margin-top:1rem;}
+    select, input[type=file] {margin:10px; padding:8px; border-radius:6px; border:none;}
+    textarea {width:90%; height:150px; margin-top:1rem; border-radius:8px; padding:10px;}
+  </style>
+</head>
+<body>
+  <header>Kavishe Media Player</header>
+  <main>
+    <input type="file" id="fileInput" accept="audio/*,video/*">
+    <br>
+    <video id="videoPlayer" controls style="width:100%;max-height:250px; display:none;"></video>
+    <div id="waveform"></div><div id="controls">
+  <button id="playBtn">▶️ Play</button>
+  <button id="pauseBtn">⏸️ Pause</button>
+  <button id="stopBtn">⏹️ Stop</button>
+  <button id="backBtn">⏮️ Back</button>
+  <button id="nextBtn">⏭️ Next</button>
+</div>
+
+<h3>Chagua Lugha ya Maandishi / Choose Subtitle Language</h3>
+<select id="languageSelect">
+  <option value="sw-TZ">Kiswahili</option>
+  <option value="en-US">English</option>
+  <option value="fr-FR">Français</option>
+  <option value="de-DE">Deutsch</option>
+  <option value="es-ES">Español</option>
+</select>
+<br>
+<button id="startTranscribe">Anza Kutambua</button>
+<button id="stopTranscribe">Acha Kutambua</button>
+
+<textarea id="transcript" placeholder="Maandishi yatatokea hapa..."></textarea>
+<br>
+<button id="saveTxt">💾 Hifadhi kama TXT</button>
+
+  </main><script>
+  const fileInput = document.getElementById("fileInput");
+  const videoPlayer = document.getElementById("videoPlayer");
+  const playBtn = document.getElementById("playBtn");
+  const pauseBtn = document.getElementById("pauseBtn");
+  const stopBtn = document.getElementById("stopBtn");
+  const backBtn = document.getElementById("backBtn");
+  const nextBtn = document.getElementById("nextBtn");
+  const transcriptArea = document.getElementById("transcript");
+  const saveTxtBtn = document.getElementById("saveTxt");
+  const languageSelect = document.getElementById("languageSelect");
+
+  let currentFileType = null;
+  let recognition;
+
+  const wavesurfer = WaveSurfer.create({
+    container: '#waveform',
+    waveColor: '#4f46e5',
+    progressColor: '#22c55e',
+    height: 100,
+  });
+
+  // Pakia faili
+  fileInput.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    if (file.type.startsWith("video")) {
+      videoPlayer.src = url;
+      videoPlayer.style.display = "block";
+      wavesurfer.empty();
+      currentFileType = "video";
+    } else if (file.type.startsWith("audio")) {
+      videoPlayer.style.display = "none";
+      wavesurfer.load(url);
+      currentFileType = "audio";
+    }
+  });
+
+  // Controls
+  playBtn.onclick = () => {
+    if (currentFileType === "video") videoPlayer.play();
+    else wavesurfer.play();
+  };
+  pauseBtn.onclick = () => {
+    if (currentFileType === "video") videoPlayer.pause();
+    else wavesurfer.pause();
+  };
+  stopBtn.onclick = () => {
+    if (currentFileType === "video") { videoPlayer.pause(); videoPlayer.currentTime = 0; }
+    else { wavesurfer.stop(); }
+  };
+  backBtn.onclick = () => {
+    if (currentFileType === "video") videoPlayer.currentTime -= 5;
+    else wavesurfer.seekTo(Math.max(0, (wavesurfer.getCurrentTime()-5)/wavesurfer.getDuration()));
+  };
+  nextBtn.onclick = () => {
+    if (currentFileType === "video") videoPlayer.currentTime += 5;
+    else wavesurfer.seekTo(Math.min(1, (wavesurfer.getCurrentTime()+5)/wavesurfer.getDuration()));
+  };
+
+  // Speech recognition
+  if ('webkitSpeechRecognition' in window) {
+    recognition = new webkitSpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onresult = (event) => {
+      let text = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        text += event.results[i][0].transcript;
+      }
+      transcriptArea.value += text + " ";
+    };
+  } else {
+    alert("Hii browser haina msaada wa Speech Recognition");
+  }
+
+  document.getElementById("startTranscribe").onclick = () => {
+    if (!recognition) return;
+    recognition.lang = languageSelect.value;
+    recognition.start();
+  };
+  document.getElementById("stopTranscribe").onclick = () => {
+    if (recognition) recognition.stop();
+  };
+
+  // Hifadhi TXT
+  saveTxtBtn.onclick = () => {
+    const blob = new Blob([transcriptArea.value], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'transcript.txt';
+    a.click();
+  };
+</script></body>
+</html>
